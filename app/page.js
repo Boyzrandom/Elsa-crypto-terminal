@@ -6,9 +6,10 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [query, setQuery] = useState("BTC");
   const [activeSymbol, setActiveSymbol] = useState("BTC");
-  const [chartMode, setChartMode] = useState("PYTHON"); // Default: Grafik Server Aman
+  const [loading, setLoading] = useState(false);
 
   const fetchData = async (symbol) => {
+    setLoading(true);
     try {
       const res = await fetch(`/api/crypto?symbol=${symbol}`);
       const json = await res.json();
@@ -20,139 +21,142 @@ export default function Home() {
         setError(null);
       }
     } catch (err) {
-      setError("Gagal menghubungi server.");
+      setError("Koneksi ke Elsa Brain terputus.");
     }
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchData(activeSymbol);
-    const interval = setInterval(() => fetchData(activeSymbol), 60000); // Auto-refresh 60 detik
+    const interval = setInterval(() => fetchData(activeSymbol), 60000);
     return () => clearInterval(interval);
   }, [activeSymbol]);
 
-  const fNum = (num) => num ? Number(num).toLocaleString('en-US', {maximumFractionDigits: 2}) : "0";
-
-  // URL Grafik Python (Langsung dari HF)
-  const getChartSymbol = (sym) => {
-    if (sym.includes('USDT')) return sym.replace('USDT', '/USDT');
-    return `${sym}/USDT`;
-  };
-  const pythonChartUrl = `https://boyel2-backend-crypto.hf.space/api/chart/${getChartSymbol(activeSymbol)}/1h?t=${new Date().getTime()}`;
+  const fNum = (num) => num ? Number(num).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0";
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#0f0f0f', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'monospace' }}>
-      
-      {/* HEADER */}
-      <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-        <h2 style={{ color: '#00ffcc', margin: 0 }}>ELSA SAFE TERMINAL</h2>
-        <p style={{ color: '#666', fontSize: '11px' }}>Engine: CryptoCompare (US-Safe)</p>
+    <div style={{ padding: '20px', backgroundColor: '#0a0a0a', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'monospace' }}>
+
+      {/* --- HEADER & SEARCH --- */}
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <h2 style={{ color: '#00ffcc', letterSpacing: '2px', marginBottom: '5px' }}>ELSA TERMINAL v3.5</h2>
+        <div style={{ fontSize: '10px', color: '#444' }}>ULTRALIGHT ON-CHAIN & FUNDAMENTAL ENGINE</div>
       </div>
 
-      {/* SEARCH */}
       <form onSubmit={(e) => { e.preventDefault(); setActiveSymbol(query.toUpperCase()); }} 
-            style={{ display: 'flex', gap: '10px', maxWidth: '500px', margin: '0 auto 20px' }}>
+            style={{ display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto 30px' }}>
         <input 
           type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-          style={{ flex: 1, padding: '12px', borderRadius: '8px', background: '#1a1a1a', color: 'white', border: '1px solid #333' }}
-          placeholder="Simbol (BTC, ETH)"
+          style={{ flex: 1, padding: '15px', borderRadius: '12px', background: '#111', color: 'white', border: '1px solid #333', outline: 'none' }}
+          placeholder="Enter Symbol (e.g. BTC, ETH, SOL)"
         />
-        <button type="submit" style={{ padding: '10px 20px', background: '#00ffcc', border: 'none', borderRadius: '8px', fontWeight: 'bold', color:'black', cursor:'pointer' }}>GO</button>
+        <button type="submit" style={{ padding: '0 25px', background: '#00ffcc', color: 'black', borderRadius: '12px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>ANALYZE</button>
       </form>
 
-      {error && <div style={{ color: '#ff4d4d', textAlign: 'center', marginBottom: '20px' }}>⚠️ {error}</div>}
+      {error && <div style={{ color: '#ff4d4d', textAlign: 'center', padding: '20px', background: '#200', borderRadius: '10px' }}>⚠️ {error}</div>}
 
       {data ? (
-        <div style={{ maxWidth: '700px', margin: '0 auto', display: 'grid', gap: '20px' }}>
-          
-          {/* HARGA & TREND */}
-          <div style={{ background: '#1a1a1a', padding: '20px', borderRadius: '15px', borderLeft: `5px solid ${data.signals?.trend_signal === 'UPTREND' ? '#00ff88' : '#ff4444'}` }}>
-             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <div>
-                   <div style={{ fontSize: '12px', color: '#888' }}>{data.symbol}</div>
-                   <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'white' }}>${fNum(data.close_price)}</div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                   <div style={{ fontSize: '10px', color: '#888' }}>TREND</div>
-                   <div style={{ fontSize: '20px', fontWeight: 'bold', color: data.signals?.trend_signal === 'UPTREND' ? '#00ff88' : '#ff4444' }}>
-                     {data.signals?.trend_signal}
-                   </div>
-                </div>
-             </div>
-          </div>
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
 
-          {/* DUAL CHART VIEWER */}
-          <div style={{ background: '#1a1a1a', padding: '10px', borderRadius: '15px' }}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-              <button onClick={() => setChartMode("PYTHON")} 
-                      style={{ flex: 1, padding: '8px', borderRadius: '5px', border: 'none', background: chartMode === 'PYTHON' ? '#00ffcc' : '#333', color: chartMode === 'PYTHON' ? 'black' : 'white', cursor: 'pointer', fontSize: '12px' }}>
-                📡 SERVER CHART (Aman)
-              </button>
-              <button onClick={() => setChartMode("TV")} 
-                      style={{ flex: 1, padding: '8px', borderRadius: '5px', border: 'none', background: chartMode === 'TV' ? '#00ffcc' : '#333', color: chartMode === 'TV' ? 'black' : 'white', cursor: 'pointer', fontSize: '12px' }}>
-                📈 TRADINGVIEW
-              </button>
-            </div>
-
-            {chartMode === 'PYTHON' ? (
-              <div style={{ textAlign: 'center' }}>
-                <img 
-                  src={pythonChartUrl} 
-                  alt="Chart Analisis" 
-                  style={{ width: '100%', borderRadius: '10px', border: '1px solid #333' }}
-                  onError={(e) => { e.target.style.display='none'; }}
-                />
+          {/* 1. PRICE & SIGNAL CARD */}
+          <div style={{ gridColumn: '1 / -1', background: '#111', padding: '30px', borderRadius: '20px', border: '1px solid #222', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: data.signals.final_signal.includes('BUY') ? '#00ff88' : '#ff4444' }}></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: '14px', color: '#666' }}>{data.symbol} / USD</div>
+                <div style={{ fontSize: '48px', fontWeight: 'bold', color: '#fff' }}>${fNum(data.close_price)}</div>
+                <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                  {data.signals.candlestick.map(p => <span key={p} style={{ fontSize: '10px', background: '#333', padding: '2px 8px', borderRadius: '4px' }}>{p}</span>)}
+                </div>
               </div>
-            ) : (
-              <div style={{ height: '400px', borderRadius: '10px', overflow: 'hidden' }}>
-                 <iframe 
-                    src={`https://s.tradingview.com/widgetembed/?symbol=BINANCE%3A${activeSymbol}USDT&interval=60&theme=dark&style=1&locale=id`}
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                 ></iframe>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '12px', color: '#888' }}>SIGNAL SCORE: {data.signals.score}</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: data.signals.final_signal.includes('BUY') ? '#00ff88' : '#ff4444' }}>{data.signals.final_signal}</div>
+                <div style={{ fontSize: '12px', color: '#555' }}>Trend: {data.signals.trend}</div>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* INDIKATOR GRID */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-             {/* Fear & Greed */}
-             <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '10px', color: '#888' }}>FEAR & GREED</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: data.market_sentiment?.fear_and_greed?.value > 50 ? '#00ff88' : '#ff4444' }}>
-                  {data.market_sentiment?.fear_and_greed?.value || "0"}
-                </div>
-                <div style={{ fontSize: '12px', color: 'white' }}>{data.market_sentiment?.fear_and_greed?.classification}</div>
-             </div>
-             {/* RSI */}
-             <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '10px', color: '#888' }}>RSI (14)</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffcc00' }}>
-                  {Number(data.technical_indicators?.rsi).toFixed(1)}
-                </div>
-                <div style={{ fontSize: '12px', color: 'white' }}>
-                    {data.technical_indicators?.rsi > 70 ? 'Overbought' : data.technical_indicators?.rsi < 30 ? 'Oversold' : 'Normal'}
-                </div>
-             </div>
+          {/* 2. YAHOO FUNDAMENTAL & ON-CHAIN */}
+          <div style={{ background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222' }}>
+            <div style={{ color: '#00ffcc', fontSize: '12px', marginBottom: '15px' }}>MARKET INSIGHTS (YAHOO & ON-CHAIN)</div>
+            <div style={{ display: 'grid', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Analis Rec:</span>
+                <span style={{ color: '#ffcc00' }}>{data.fundamental_data.yahoo.recommendation}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#666' }}>Target Price:</span>
+                <span>${fNum(data.fundamental_data.yahoo.target_price)}</span>
+              </div>
+              {/* On-Chain Logic */}
+              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #222' }}>
+                {data.fundamental_data.onchain.network === "Ethereum" ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666' }}>Gas Price:</span>
+                    <span style={{ color: '#00ccff' }}>{data.fundamental_data.onchain.gas_gwei?.Fast} Gwei (Fast)</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#666' }}>BTC Hashrate:</span>
+                    <span style={{ color: '#00ccff' }}>{data.fundamental_data.onchain.hash_rate || "N/A"}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* FIBONACCI LEVELS */}
-          <div style={{ background: '#1a1a1a', padding: '20px', borderRadius: '15px' }}>
-            <div style={{ color: '#888', fontSize: '12px', marginBottom: '10px', textAlign: 'center', borderBottom:'1px solid #333', paddingBottom:'5px' }}>
-                LEVEL FIBONACCI (Support & Resistance)
+          {/* 3. PIVOT POINTS (S&R) */}
+          <div style={{ background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222' }}>
+            <div style={{ color: '#00ffcc', fontSize: '12px', marginBottom: '15px' }}>PIVOT POINTS (TRADING LEVELS)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ color: '#ff4444' }}>
+                <div style={{ fontSize: '10px' }}>RESISTANCE 3</div>
+                <div>{fNum(data.pivots.R3)}</div>
+              </div>
+              <div style={{ color: '#00ff88' }}>
+                <div style={{ fontSize: '10px' }}>SUPPORT 3</div>
+                <div>{fNum(data.pivots.S3)}</div>
+              </div>
+              <div style={{ color: '#ff4444', opacity: 0.7 }}>
+                <div style={{ fontSize: '10px' }}>R1</div>
+                <div>{fNum(data.pivots.R1)}</div>
+              </div>
+              <div style={{ color: '#00ff88', opacity: 0.7 }}>
+                <div style={{ fontSize: '10px' }}>S1</div>
+                <div>{fNum(data.pivots.S1)}</div>
+              </div>
             </div>
-            <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
-              {data.fibonacci_levels && Object.entries(data.fibonacci_levels).map(([level, price]) => (
-                <div key={level} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#666' }}>{level}:</span>
-                  <span style={{ color: '#00ffcc', fontWeight:'bold' }}>${fNum(price)}</span>
-                </div>
-              ))}
+          </div>
+
+          {/* 4. FIBONACCI LEVELS */}
+          <div style={{ background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222' }}>
+            <div style={{ color: '#00ffcc', fontSize: '12px', marginBottom: '15px' }}>FIBONACCI RETRACEMENT</div>
+            {Object.entries(data.fibs).map(([level, price]) => (
+              <div key={level} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '12px' }}>
+                <span style={{ color: '#555' }}>{level}</span>
+                <span>${fNum(price)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 5. SENTIMENT METER */}
+          <div style={{ background: '#111', padding: '20px', borderRadius: '20px', border: '1px solid #222', textAlign: 'center' }}>
+            <div style={{ color: '#888', fontSize: '10px' }}>FEAR & GREED INDEX</div>
+            <div style={{ fontSize: '32px', fontWeight: 'bold', color: data.market_sentiment.fear_and_greed.value > 50 ? '#00ff88' : '#ff4444' }}>
+              {data.market_sentiment.fear_and_greed.value}
             </div>
+            <div style={{ fontSize: '12px' }}>{data.market_sentiment.fear_and_greed.text}</div>
           </div>
 
         </div>
       ) : (
-        !error && <div style={{ textAlign: 'center', marginTop: '50px', color: '#00ffcc' }}>Menghubungkan ke Elsa Brain (Safe Mode)...</div>
+        !loading && <div style={{ textAlign: 'center', marginTop: '100px', color: '#333' }}>Enter a symbol to begin professional analysis.</div>
       )}
+
+      <footer style={{ textAlign: 'center', marginTop: '50px', fontSize: '10px', color: '#333' }}>
+        SYNCED WITH ELSA BRAIN v3.5 • {data?.last_updated}
+      </footer>
     </div>
   );
 }
