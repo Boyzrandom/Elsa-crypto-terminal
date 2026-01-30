@@ -1,46 +1,152 @@
-"use client";
-import { useEffect, useState } from 'react';
+      "use client";
+      import { useEffect, useState } from 'react';
 
-export default function Home() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-  const [query, setQuery] = useState("BTC");
-  const [activeSymbol, setActiveSymbol] = useState("BTC");
-  const [loading, setLoading] = useState(false);
+      export default function Home() {
+        const [data, setData] = useState(null);
+        const [query, setQuery] = useState("BTC");
+        const [activeSymbol, setActiveSymbol] = useState("BTC");
+        const [loading, setLoading] = useState(false);
 
-  const fetchData = async (symbol) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/crypto?symbol=${symbol}`);
-      const json = await res.json();
-      if (json.error) {
-        setError(json.error);
-        setData(null);
-      } else {
-        setData(json);
-        setError(null);
+        const fetchData = async (symbol) => {
+          setLoading(true);
+          try {
+            const res = await fetch(`/api/crypto?symbol=${symbol}`);
+            const json = await res.json();
+            setData(json);
+          } catch (err) {
+            console.error("Fetch error:", err);
+          }
+          setLoading(false);
+        };
+
+        useEffect(() => {
+          fetchData(activeSymbol);
+          const interval = setInterval(() => fetchData(activeSymbol), 60000);
+          return () => clearInterval(interval);
+        }, [activeSymbol]);
+
+        const fNum = (n) => n ? Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0";
+
+        return (
+          <div style={{ backgroundColor: '#050505', color: '#00ffcc', minHeight: '100vh', padding: '20px', fontFamily: '"Segoe UI", Roboto, monospace' }}>
+
+            {/* --- TOP BAR --- */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #111', paddingBottom: '15px' }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '20px', letterSpacing: '2px' }}>ELSA PRO <span style={{ color: '#fff' }}>v3.5</span></h1>
+                <div style={{ fontSize: '10px', color: '#444' }}>QUANTITATIVE INTELLIGENCE UNIT</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '10px', color: '#00ff88' }}>● SYSTEM ACTIVE</div>
+                <div style={{ fontSize: '9px', color: '#333' }}>{data?.last_updated || 'Syncing...'}</div>
+              </div>
+            </div>
+
+            {/* --- SEARCH BOX --- */}
+            <form onSubmit={(e) => { e.preventDefault(); setActiveSymbol(query.toUpperCase()); }} 
+                  style={{ display: 'flex', gap: '10px', maxWidth: '600px', margin: '0 auto 30px' }}>
+              <input 
+                type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+                style={{ flex: 1, padding: '15px', borderRadius: '8px', background: '#0a0a0a', color: 'white', border: '1px solid #222', outline: 'none' }}
+                placeholder="SEARCH ASSET (ETH, SOL, BTC)..."
+              />
+              <button type="submit" style={{ padding: '0 25px', background: '#00ffcc', color: 'black', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>SCAN</button>
+            </form>
+
+            {data && (
+              <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+
+                {/* MAIN PRICE & SIGNAL */}
+                <div style={{ gridColumn: '1 / -1', background: 'linear-gradient(145deg, #0a0a0a, #0f0f0f)', padding: '30px', borderRadius: '15px', border: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ color: '#666', fontSize: '12px' }}>{data.symbol} / USD</div>
+                    <div style={{ fontSize: '42px', fontWeight: 'bold', color: '#fff' }}>${fNum(data.close_price)}</div>
+                    <div style={{ color: data.signals.trend === 'UPTREND' ? '#00ff88' : '#ff4444', fontSize: '12px', marginTop: '5px' }}>
+                      {data.signals.trend} MARKET
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '20px', borderLeft: '1px solid #222' }}>
+                    <div style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>ELSA SIGNAL</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: data.signals.final_signal.includes('BUY') ? '#00ff88' : '#ff4444' }}>
+                      {data.signals.final_signal}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#333' }}>CONVICTION: {data.signals.score}/5</div>
+                  </div>
+                </div>
+
+                {/* ON-CHAIN INTELLIGENCE */}
+                <div style={{ background: '#0a0a0a', padding: '20px', borderRadius: '15px', border: '1px solid #1a1a1a' }}>
+                  <div style={{ fontSize: '11px', color: '#444', marginBottom: '15px' }}>ON-CHAIN METRICS</div>
+                  {data.fundamental_data.onchain.network === 'Ethereum' ? (
+                    <div style={{ display: 'grid', gap: '15px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#666' }}>Gas Fast:</span>
+                        <span style={{ color: '#00ccff' }}>{Number(data.fundamental_data.onchain.gas_gwei?.Fast).toFixed(2)} Gwei</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#666' }}>Gas Safe:</span>
+                        <span>{Number(data.fundamental_data.onchain.gas_gwei?.Safe).toFixed(2)} Gwei</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '15px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#666' }}>Hashrate:</span>
+                        <span style={{ color: '#00ccff' }}>{data.fundamental_data.onchain.hash_rate || 'N/A'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* OSCILLATORS (STOCH & RSI) */}
+                <div style={{ background: '#0a0a0a', padding: '20px', borderRadius: '15px', border: '1px solid #1a1a1a' }}>
+                  <div style={{ fontSize: '11px', color: '#444', marginBottom: '15px' }}>OSCILLATORS</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', textAlign: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#666' }}>RSI</div>
+                      <div style={{ fontSize: '20px', color: '#fff' }}>{fNum(data.technical_indicators.rsi)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#666' }}>STOCH_K</div>
+                      <div style={{ fontSize: '20px', color: '#fff' }}>{fNum(data.technical_indicators.stoch_k)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* INSTITUTIONAL VIEW */}
+                <div style={{ background: '#0a0a0a', padding: '20px', borderRadius: '15px', border: '1px solid #1a1a1a' }}>
+                  <div style={{ fontSize: '11px', color: '#444', marginBottom: '15px' }}>INSTITUTIONAL VIEW</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#666' }}>Analis Rec:</span>
+                    <span style={{ padding: '4px 10px', borderRadius: '4px', background: '#111', color: '#ffcc00', fontSize: '12px', fontWeight: 'bold' }}>
+                      {data.fundamental_data.yahoo.recommendation}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+                    <span style={{ color: '#666' }}>Mkt Cap:</span>
+                    <span style={{ fontSize: '12px' }}>${(data.fundamental_data.yahoo.market_cap / 1e9).toFixed(2)}B</span>
+                  </div>
+                </div>
+
+                {/* TRADING LEVELS (PIVOTS) */}
+                <div style={{ gridColumn: '1 / -1', background: '#0a0a0a', padding: '20px', borderRadius: '15px', border: '1px solid #1a1a1a' }}>
+                  <div style={{ fontSize: '11px', color: '#444', marginBottom: '15px' }}>TRADING LEVELS (PIVOTS)</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', textAlign: 'center' }}>
+                    <div><div style={{fontSize:'9px', color:'#ff4444'}}>R2</div><div style={{fontSize:'12px'}}>{fNum(data.pivots.R2)}</div></div>
+                    <div><div style={{fontSize:'9px', color:'#ff4444'}}>R1</div><div style={{fontSize:'12px'}}>{fNum(data.pivots.R1)}</div></div>
+                    <div><div style={{fontSize:'9px', color:'#00ffcc'}}>PIVOT</div><div style={{fontSize:'12px', fontWeight:'bold'}}>{fNum(data.pivots.pivot)}</div></div>
+                    <div><div style={{fontSize:'9px', color:'#00ff88'}}>S1</div><div style={{fontSize:'12px'}}>{fNum(data.pivots.S1)}</div></div>
+                    <div><div style={{fontSize:'9px', color:'#00ff88'}}>S2</div><div style={{fontSize:'12px'}}>{fNum(data.pivots.S2)}</div></div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {loading && <div style={{ textAlign: 'center', marginTop: '50px', color: '#00ffcc', fontSize: '12px' }}>RESCANNING NETWORK...</div>}
+          </div>
+        );
       }
-    } catch (err) {
-      setError("Koneksi ke Elsa Brain terputus.");
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData(activeSymbol);
-    const interval = setInterval(() => fetchData(activeSymbol), 60000);
-    return () => clearInterval(interval);
-  }, [activeSymbol]);
-
-  const fNum = (num) => num ? Number(num).toLocaleString('en-US', { maximumFractionDigits: 2 }) : "0";
-
-  return (
-    <div style={{ padding: '20px', backgroundColor: '#0a0a0a', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'monospace' }}>
-
-      {/* --- HEADER & SEARCH --- */}
-      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h2 style={{ color: '#00ffcc', letterSpacing: '2px', marginBottom: '5px' }}>ELSA TERMINAL v3.5</h2>
-        <div style={{ fontSize: '10px', color: '#444' }}>ULTRALIGHT ON-CHAIN & FUNDAMENTAL ENGINE</div>
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); setActiveSymbol(query.toUpperCase()); }} 
