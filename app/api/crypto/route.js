@@ -1,79 +1,87 @@
 import { NextResponse } from 'next/server';
 
 /**
- * ELSA BACKEND ENGINE v1.6 - BYBIT EDITION
- * Jalur data lebih stabil dan cepat.
+ * ELSA SAFE ENGINE v3.0
+ * Source: CryptoCompare (Anti-Block & Public API)
  */
 
-function detectPattern(list) {
-  if (!list || list.length < 2) return "Normal";
+function detectPattern(candles) {
+  try {
+    const last = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
 
-  // Data Bybit: [startTime, open, high, low, close, volume, turnover]
-  const last = list[0]; // Bybit memberikan data terbaru di index 0
-  const prev = list[1];
+    // CryptoCompare structure: { close, open, high, low, ... }
+    const c1 = last.close, o1 = last.open, h1 = last.high, l1 = last.low;
+    const c2 = prev.close, o2 = prev.open;
+    const body = Math.abs(c1 - o1);
 
-  const o1 = parseFloat(last[1]), h1 = parseFloat(last[2]), l1 = parseFloat(last[3]), c1 = parseFloat(last[4]);
-  const o2 = parseFloat(prev[1]), c2 = parseFloat(prev[4]);
+    // Logic Pattern Sederhana
+    if (c2 < o2 && c1 > o1 && o1 <= c2 && c1 >= o2) return "Bullish Engulfing 🚀";
+    if (c2 > o2 && c1 < o1 && o1 >= c2 && c1 <= o2) return "Bearish Engulfing 📉";
+    if ((Math.min(o1, c1) - l1) > body * 2) return "Hammer 🔨";
 
-  const body = Math.abs(c1 - o1);
-  if (c2 < o2 && c1 > o1 && o1 <= c2 && c1 >= o2) return "Bullish Engulfing 🚀";
-  if (c2 > o2 && c1 < o1 && o1 >= c2 && c1 <= o2) return "Bearish Engulfing 📉";
-  if ((Math.min(o1, c1) - l1) > body * 2) return "Hammer 🔨";
-
-  return "Normal";
+    return "Normal";
+  } catch (e) {
+    return "Normal";
+  }
 }
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get('symbol')?.toUpperCase() || 'ETHUSDT';
+    // Bersihkan simbol (misal ETHUSDT -> ETH) agar cocok dengan CryptoCompare
+    let rawSymbol = searchParams.get('symbol')?.toUpperCase() || 'ETH';
+    const coin = rawSymbol.replace('USDT', '').replace('USD', '').replace('BUSD', ''); 
 
-    // 1. Fetch ke Bybit V5 API (Public - No Key Needed)
-    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=60&limit=60`, {
-      cache: 'no-store'
-    });
+    // URL API Publik CryptoCompare (Aman & Stabil)
+    const url = `https://min-api.cryptocompare.com/data/v2/histohour?fsym=${coin}&tsym=USD&limit=30`;
 
+    const res = await fetch(url, { cache: 'no-store' });
     const json = await res.json();
 
-    // 2. Validasi Struktur Bybit (result.list)
-    if (!json.result || !Array.isArray(json.result.list) || json.result.list.length === 0) {
-      return NextResponse.json({ error: `Simbol ${symbol} tidak ditemukan di Bybit.` }, { status: 404 });
+    // Validasi Data
+    if (json.Response === 'Error' || !json.Data || !json.Data.Data) {
+      return NextResponse.json({ error: `Koin ${coin} tidak ditemukan.` }, { status: 404 });
     }
 
-    const list = json.result.list; // Bybit list: newest to oldest
-    const closes = list.map(item => parseFloat(item[4])).reverse(); // Balik urutan agar EMA benar (oldest to newest)
+    const candles = json.Data.Data; // Array data (Time Ascending)
+    const closes = candles.map(c => c.close);
     const currentPrice = closes[closes.length - 1];
 
-    // 3. Hitung EMA 20
+    // Hitung EMA 20
     const k = 2 / (20 + 1);
     let ema20 = closes[0];
-    closes.forEach(p => {
-      ema20 = (p * k) + (ema20 * (1 - k));
-    });
+    closes.forEach(p => { ema20 = (p * k) + (ema20 * (1 - k)); });
 
-    // 4. Hitung StochRSI Sederhana
+    // Hitung StochRSI
     const last14 = closes.slice(-14);
     const low = Math.min(...last14);
     const high = Math.max(...last14);
-    const stochRsi = ((currentPrice - low) / (high - low)) * 100;
+    let stochRsi = 50; // Default middle
+    if (high - low !== 0) {
+        stochRsi = ((currentPrice - low) / (high - low)) * 100;
+    }
 
-    // 5. Kesimpulan Trend & Sinyal
+    // Tentukan Trend & Signal
     const trend = currentPrice > ema20 ? "BULLISH" : "BEARISH";
     let signal = "WAIT";
+
     if (stochRsi < 20 && trend === "BULLISH") signal = "STRONG BUY";
     else if (stochRsi > 80 && trend === "BEARISH") signal = "STRONG SELL";
+    else if (stochRsi < 20) signal = "BUY (RISKY)";
+    else if (stochRsi > 80) signal = "SELL (RISKY)";
 
     return NextResponse.json({
-      symbol,
-      price: currentPrice.toLocaleString('en-US'),
+      symbol: `${coin}/USD`,
+      price: currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2 }),
       ema20: ema20.toFixed(2),
       stochRsi: stochRsi.toFixed(2),
       trend,
       signal,
-      pattern: detectPattern(list)
+      pattern: detectPattern(candles)
     });
 
   } catch (err) {
-    return NextResponse.json({ error: "Koneksi Bybit bermasalah." }, { status: 500 });
+    return NextResponse.json({ error: "Gagal terhubung ke server data." }, { status: 500 });
   }
 }
