@@ -3,11 +3,10 @@ import { NextResponse } from 'next/server';
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    // Ambil simbol, default BTCUSDT
-    let rawSymbol = searchParams.get('symbol')?.toUpperCase() || 'BTCUSDT';
-    
-    // FORMATTING: Ubah "BTCUSDT" menjadi "BTC/USDT" agar sesuai dengan API Boyel2
-    // Jika user mengetik "BTC", kita jadikan "BTC/USDT"
+    // Ambil simbol dari input user (misal: BTC)
+    let rawSymbol = searchParams.get('symbol')?.toUpperCase() || 'BTC';
+
+    // FORMATTING: Pastikan formatnya "BTC/USDT" agar backend Python mengerti
     let formattedSymbol = rawSymbol;
     if (!rawSymbol.includes('/')) {
         if (rawSymbol.endsWith('USDT')) {
@@ -17,33 +16,21 @@ export async function GET(request) {
         }
     }
 
-    // URL Target: Hugging Face Space Anda
-    const targetUrl = `https://boyel2-backend-crypto.hf.space/api/analyze?symbol=${formattedSymbol}&timeframe=1h`;
+    // Panggil API Python Anda di Hugging Face
+    // Pastikan URL ini sesuai dengan Space Anda (boyel2-backend-crypto)
+    const targetUrl = `https://boyel2-backend-crypto.hf.space/api/analyze?symbol=${formattedSymbol}`;
 
-    console.log(`Fetching: ${targetUrl}`); // Untuk cek di Log Vercel
-
-    // Fetch ke Hugging Face
     const res = await fetch(targetUrl, { 
         cache: 'no-store',
-        headers: {
-            'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
     });
 
-    if (!res.ok) {
-        throw new Error(`Gagal mengambil data dari Boyel2 (Status: ${res.status})`);
-    }
+    if (!res.ok) throw new Error("Gagal mengambil data dari server Python.");
 
     const json = await res.json();
-
-    // Kirim data mentah dari Boyel2 langsung ke Frontend
     return NextResponse.json(json);
 
   } catch (err) {
-    console.error("Proxy Error:", err);
-    return NextResponse.json({ 
-        error: "Gagal terhubung ke Advanced API.", 
-        details: err.message 
-    }, { status: 500 });
+    return NextResponse.json({ error: "Koneksi ke Brain Error", details: err.message }, { status: 500 });
   }
 }
