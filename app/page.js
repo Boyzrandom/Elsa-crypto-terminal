@@ -4,78 +4,91 @@ import { useEffect, useState } from 'react';
 export default function Home() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [query, setQuery] = useState("ETHUSDT");
-  const [activeSymbol, setActiveSymbol] = useState("ETHUSDT");
-  const [activeTab, setActiveTab] = useState("analysis");
+  const [query, setQuery] = useState("BTC");
+  const [activeSymbol, setActiveSymbol] = useState("BTC");
 
   const fetchData = async (symbol) => {
     try {
+      setData(null); // Reset saat loading
       const res = await fetch(`/api/crypto?symbol=${symbol}`);
       const json = await res.json();
+
       if (json.error) {
-        setError(json.error);
-        setData(null);
+        setError(json.details || json.error);
       } else {
         setData(json);
         setError(null);
       }
     } catch (err) {
-      setError("Gagal terhubung ke API Vercel.");
+      setError("Gagal menghubungi server.");
     }
   };
 
   useEffect(() => {
     fetchData(activeSymbol);
-    const interval = setInterval(() => fetchData(activeSymbol), 30000);
-    return () => clearInterval(interval);
   }, [activeSymbol]);
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setActiveSymbol(query.toUpperCase().replace(/\s/g, ''));
+  };
+
+  // --- FUNGSI HELPER UNTUK MENAMPILKAN DATA API ---
+  // Karena kita belum tahu persis nama 'key' JSON dari API Boyel2,
+  // fungsi ini akan mencari harga dan sinyal secara otomatis.
+  const getPrice = (d) => d.price || d.close || d.current_price || "0";
+  const getSignal = (d) => d.signal || d.recommendation || d.action || "WAIT";
+  const getTrend = (d) => d.trend || "NEUTRAL";
+
   return (
-    <div style={{ padding: '20px', backgroundColor: '#0f0f0f', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'monospace' }}>
-      {/* Search & Tabs */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <form onSubmit={(e) => { e.preventDefault(); setActiveSymbol(query.toUpperCase()); }} style={{ flex: 2, display: 'flex', gap: '10px' }}>
-          <input 
-            type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-            style={{ flex: 1, padding: '12px', borderRadius: '8px', backgroundColor: '#1a1a1a', color: 'white', border: '1px solid #333' }}
-          />
-          <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#00ffcc', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>TRACK</button>
-        </form>
-        <div style={{ display: 'flex', gap: '5px' }}>
-          <button onClick={() => setActiveTab('analysis')} style={{ padding: '10px', borderRadius: '8px', backgroundColor: activeTab === 'analysis' ? '#333' : '#1a1a1a', color: 'white' }}>DATA</button>
-          <button onClick={() => setActiveTab('chart')} style={{ padding: '10px', borderRadius: '8px', backgroundColor: activeTab === 'chart' ? '#333' : '#1a1a1a', color: 'white' }}>CHART</button>
+    <div style={{ padding: '20px', backgroundColor: '#121212', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'monospace' }}>
+
+      {/* HEADER */}
+      <h2 style={{ color: '#00ffcc', textAlign: 'center' }}>ADVANCED CRYPTO TERMINAL</h2>
+      <p style={{ textAlign: 'center', fontSize: '12px', color: '#666' }}>Powered by: Boyel2 HF Space</p>
+
+      {/* SEARCH */}
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', maxWidth: '400px', margin: '20px auto' }}>
+        <input 
+          type="text" 
+          value={query} 
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Simbol (cth: BTC, ETH)"
+          style={{ flex: 1, padding: '12px', borderRadius: '8px', background: '#222', color: 'white', border: '1px solid #444' }}
+        />
+        <button type="submit" style={{ padding: '10px 20px', background: '#00ffcc', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>CEK</button>
+      </form>
+
+      {/* ERROR STATE */}
+      {error && <div style={{ color: '#ff6b6b', textAlign: 'center', padding: '20px', border: '1px solid red', borderRadius: '8px' }}>⚠️ {error}</div>}
+
+      {/* LOADING */}
+      {!data && !error && <div style={{ textAlign: 'center', marginTop: '50px', color: '#888' }}>Sedang mengambil analisis canggih...</div>}
+
+      {/* DASHBOARD */}
+      {data && (
+        <div style={{ maxWidth: '600px', margin: '0 auto', display: 'grid', gap: '15px' }}>
+
+          {/* CARD UTAMA */}
+          <div style={{ background: '#1e1e1e', padding: '30px', borderRadius: '15px', textAlign: 'center', border: '1px solid #333' }}>
+            <h1 style={{ fontSize: '48px', margin: '10px 0', color: 'white' }}>${Number(getPrice(data)).toLocaleString()}</h1>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: getTrend(data) === 'BULLISH' ? '#00ff88' : '#ff4444' }}>
+              {getTrend(data)}
+            </div>
+            <div style={{ marginTop: '10px', padding: '5px 15px', background: '#333', borderRadius: '20px', display: 'inline-block' }}>
+               Sinyal: <span style={{ color: '#ffcc00' }}>{getSignal(data)}</span>
+            </div>
+          </div>
+
+          {/* DEBUG AREA (Sangat Penting untuk API Baru) */}
+          {/* Ini akan menampilkan SEMUA data mentah dari API Boyel2 supaya kita tahu fiturnya apa saja */}
+          <div style={{ background: '#111', padding: '15px', borderRadius: '10px', fontSize: '10px', overflowX: 'auto', border: '1px dashed #444' }}>
+            <p style={{ color: '#888', marginBottom: '5px' }}>🔍 DATA MENTAH DARI API (Untuk Pengecekan):</p>
+            <pre style={{ color: '#00ffcc' }}>{JSON.stringify(data, null, 2)}</pre>
+          </div>
+
         </div>
-      </div>
-
-      {error && <div style={{ background: '#4a0000', padding: '15px', borderRadius: '8px', color: '#ff8888', marginBottom: '20px' }}>⚠️ Error: {error}</div>}
-
-      {!data && !error ? (
-        <div style={{ textAlign: 'center', marginTop: '50px', color: '#00ffcc' }}>Menghubungkan ke Terminal Elsa...</div>
-      ) : data ? (
-        activeTab === 'analysis' ? (
-          <div style={{ display: 'grid', gap: '20px' }}>
-            <div style={{ background: '#1a1a1a', padding: '30px', borderRadius: '15px', borderLeft: `8px solid ${data.trend === 'BULLISH' ? '#00ff88' : '#ff4d4d'}` }}>
-              <div style={{ fontSize: '14px', color: '#888' }}>{data.symbol} / {data.trend}</div>
-              <div style={{ fontSize: '48px', fontWeight: 'bold' }}>${data.price}</div>
-              <div style={{ color: '#00ffcc', marginTop: '10px' }}>Pattern: {data.pattern}</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <div style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', textAlign: 'center' }}>
-                <div style={{ color: '#888' }}>STOCH RSI</div>
-                <div style={{ fontSize: '24px', color: '#ffcc00' }}>{data.stochRsi}%</div>
-              </div>
-              <div style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', textAlign: 'center' }}>
-                <div style={{ color: '#888' }}>REKOMENDASI</div>
-                <div style={{ fontSize: '18px', color: data.signal.includes('BUY') ? '#00ff88' : '#ff4d4d' }}>{data.signal}</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ height: '500px', borderRadius: '15px', overflow: 'hidden' }}>
-            <iframe style={{ width: '100%', height: '100%', border: 'none' }} src={`https://s.tradingview.com/widgetembed/?symbol=BINANCE%3A${activeSymbol}&interval=60&theme=dark`}></iframe>
-          </div>
-        )
-      ) : null}
+      )}
     </div>
   );
 }
