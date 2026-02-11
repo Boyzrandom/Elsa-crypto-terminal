@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Technical Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        body { background-color: #0f172a; color: #e2e8f0; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+
+        <div class="glass rounded-xl p-6 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg">
+            <div>
+                <h1 class="text-2xl font-bold text-blue-400"><i class="fas fa-chart-line mr-2"></i>Crypto Analyzer</h1>
+                <p class="text-xs text-gray-400">Powered by Python & Pandas</p>
+            </div>
+            <div class="flex gap-2 w-full md:w-auto">
+                <input type="text" id="symbolInput" placeholder="BTC/USDT" class="bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 w-full focus:outline-none focus:border-blue-500 uppercase">
+                <select id="timeframeInput" class="bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none">
+                    <option value="15m">15m</option>
+                    <option value="1h">1H</option>
+                    <option value="4h">4H</option>
+                    <option value="1d" selected>1D</option>
+                </select>
+                <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-semibold transition-all">
+                    Analisa
+                </button>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden text-center py-20">
+            <i class="fas fa-circle-notch fa-spin text-4xl text-blue-500"></i>
+            <p class="mt-2 text-gray-400">Sedang menganalisa pasar...</p>
+        </div>
+
+        <div id="errorMsg" class="hidden bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-lg text-center"></div>
+
+        <div id="dashboard" class="hidden space-y-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-gray-400 text-sm">Harga Saat Ini</p>
+                    <h2 id="priceDisplay" class="text-2xl font-bold mt-1">-</h2>
+                </div>
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-gray-400 text-sm">Trend</p>
+                    <h2 id="trendDisplay" class="text-2xl font-bold mt-1 text-yellow-400">-</h2>
+                </div>
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-gray-400 text-sm">RSI (14)</p>
+                    <h2 id="rsiDisplay" class="text-2xl font-bold mt-1">-</h2>
+                </div>
+                <div class="glass p-4 rounded-xl text-center">
+                    <p class="text-gray-400 text-sm">Sinyal MACD</p>
+                    <h2 id="macdDisplay" class="text-2xl font-bold mt-1">-</h2>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <div class="lg:col-span-2 glass p-4 rounded-xl">
+                    <h3 class="text-lg font-semibold mb-4 border-b border-gray-700 pb-2">Technical Chart</h3>
+                    <div class="aspect-video bg-slate-800 rounded-lg flex items-center justify-center overflow-hidden">
+                        <img id="chartImage" src="" alt="Chart will appear here" class="w-full h-full object-contain hidden">
+                        <p id="chartPlaceholder" class="text-gray-500">Grafik akan muncul setelah analisa</p>
+                    </div>
+                </div>
+
+                <div class="glass p-4 rounded-xl space-y-4">
+                    <h3 class="text-lg font-semibold border-b border-gray-700 pb-2">Indikator Detail</h3>
+
+                    <div>
+                        <p class="text-xs text-gray-400">Pivot Points</p>
+                        <div class="flex justify-between text-sm mt-1">
+                            <span>Resistance 1:</span>
+                            <span id="r1" class="text-red-400 font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Pivot:</span>
+                            <span id="pivot" class="text-yellow-400 font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>Support 1:</span>
+                            <span id="s1" class="text-green-400 font-mono">-</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-700">
+                        <p class="text-xs text-gray-400">Moving Averages</p>
+                        <div class="flex justify-between text-sm mt-1">
+                            <span>SMA 50:</span>
+                            <span id="sma50" class="font-mono text-blue-300">-</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span>SMA 200:</span>
+                            <span id="sma200" class="font-mono text-purple-300">-</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-700">
+                        <p class="text-xs text-gray-400">Candlestick Patterns</p>
+                        <ul id="patternList" class="text-sm list-disc pl-4 text-orange-300 mt-1">
+                            <li>-</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // GANTI URL INI DENGAN URL BACKEND ANDA
+        // Contoh: 'https://my-crypto-api.onrender.com'
+        // ==========================================
+        const API_BASE_URL = 'https://boyel2-backend-crypto.hf.space:7860'; 
+
+        async function fetchData() {
+            const symbol = document.getElementById('symbolInput').value.trim();
+            const timeframe = document.getElementById('timeframeInput').value;
+            const loading = document.getElementById('loading');
+            const dashboard = document.getElementById('dashboard');
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!symbol) return alert("Masukkan simbol coin!");
+
+            // Reset UI
+            loading.classList.remove('hidden');
+            dashboard.classList.add('hidden');
+            errorMsg.classList.add('hidden');
+
+            try {
+                // 1. Ambil Data JSON
+                const res = await fetch(`${API_BASE_URL}/api/analyze?symbol=${symbol}&timeframe=${timeframe}`);
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                // 2. Isi Data ke UI
+                document.getElementById('priceDisplay').innerText = formatUSD(data.price);
+                document.getElementById('trendDisplay').innerText = data.signals.trend;
+
+                // RSI Color
+                const rsiVal = data.technical.rsi;
+                const rsiEl = document.getElementById('rsiDisplay');
+                rsiEl.innerText = rsiVal ? rsiVal.toFixed(2) : '-';
+                rsiEl.className = `text-2xl font-bold mt-1 ${rsiVal > 70 ? 'text-red-400' : rsiVal < 30 ? 'text-green-400' : 'text-white'}`;
+
+                // MACD
+                const macdSignal = data.signals.macd_cross;
+                const macdEl = document.getElementById('macdDisplay');
+                if (macdSignal) {
+                    macdEl.innerText = macdSignal.type.includes('BULLISH') ? 'BUY' : 'SELL';
+                    macdEl.className = `text-2xl font-bold mt-1 ${macdSignal.type.includes('BULLISH') ? 'text-green-400' : 'text-red-400'}`;
+                } else {
+                    macdEl.innerText = 'Netral';
+                    macdEl.className = 'text-2xl font-bold mt-1 text-gray-400';
+                }
+
+                // Pivot & SMA
+                document.getElementById('r1').innerText = formatUSD(data.pivot_points.resistance_1);
+                document.getElementById('pivot').innerText = formatUSD(data.pivot_points.pivot);
+                document.getElementById('s1').innerText = formatUSD(data.pivot_points.support_1);
+                document.getElementById('sma50').innerText = formatUSD(data.technical.sma50);
+                document.getElementById('sma200').innerText = formatUSD(data.technical.sma200);
+
+                // Patterns
+                const patternList = document.getElementById('patternList');
+                patternList.innerHTML = '';
+                if (data.signals.patterns.length > 0) {
+                    data.signals.patterns.forEach(p => {
+                        patternList.innerHTML += `<li>${p}</li>`;
+                    });
+                } else {
+                    patternList.innerHTML = '<li class="text-gray-500">Tidak ada pola terdeteksi</li>';
+                }
+
+                // 3. Load Gambar Chart
+                const chartImg = document.getElementById('chartImage');
+                const chartPlaceholder = document.getElementById('chartPlaceholder');
+
+                // Tambahkan timestamp agar gambar tidak dicache browser
+                chartImg.src = `${API_BASE_URL}/api/chart/${symbol.replace('/', '-')}/${timeframe}?t=${new Date().getTime()}`;
+
+                chartImg.onload = () => {
+                    chartImg.classList.remove('hidden');
+                    chartPlaceholder.classList.add('hidden');
+                };
+
+                dashboard.classList.remove('hidden');
+
+            } catch (err) {
+                errorMsg.innerText = `Error: ${err.message}`;
+                errorMsg.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function formatUSD(num) {
+            if (!num) return '-';
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+        }
+    </script>
+</body>
+</html>
